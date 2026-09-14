@@ -7384,3 +7384,87 @@ Para desfazer: apagar este bloco - os botoes somem do painel principal, nada mai
   });
 })();
 </script>
+
+<script>
+/* PATCH_LM_BOTAO_TRACCAR v1 (14/09/2026) - pedido do dono: alem do link de confirmar entrega
+   (PATCH_LINK_MOTORISTA), da pro escritorio copiar uma URL pra colar no app "Traccar Client"
+   (gratuito, Play Store) - ele manda a localizacao em segundo plano DE VERDADE (com tela
+   apagada, app fechado), o que um link de navegador nao consegue (limite do proprio sistema
+   Android/iOS, nao tem jeito de contornar so com codigo). O Traccar Client manda a posicao pro
+   endpoint (Edge Function "traccar-ping" no Supabase) que atualiza o mesmo d.tracking que o
+   card/mapa ja leem - nada muda na exibicao. Reaproveita a MESMA chave persistente por placa que
+   o link de confirmacao ja usa (S.linksPorPlaca) - nao precisa gerenciar nenhum segredo novo,
+   nem mexer no PATCH_LINK_MOTORISTA existente. So aparece na tela do escritorio (nunca quando
+   ?mot= esta na URL, ou seja, nunca na tela do motorista). Para desfazer: apague este bloco. */
+(function(){
+  if (window.__PATCH_LM_BOTAO_TRACCAR) return;
+  window.__PATCH_LM_BOTAO_TRACCAR = "v1";
+
+  var qpBT = new URLSearchParams(location.search);
+  if (qpBT.get("mot")) return; // nunca na tela do motorista
+
+  var URL_FUNCTION_TRACCAR = "https://tqkqnmecanwvxegjiicz.supabase.co/functions/v1/traccar-ping";
+
+  function tokenAleatorioBT(){
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID().replace(/-/g, "");
+    return Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  }
+
+  function chaveDaPlacaBT(placaNorm){
+    if (!S.linksPorPlaca) S.linksPorPlaca = {};
+    var entry = S.linksPorPlaca[placaNorm];
+    if (!entry || !entry.chave) {
+      entry = { chave: tokenAleatorioBT(), criadoEm: Date.now() };
+      S.linksPorPlaca[placaNorm] = entry;
+      if (typeof save === "function") save();
+    }
+    return entry.chave;
+  }
+
+  function copiarTextoBT(t){
+    var ok = false;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(t); ok = true; }
+    } catch (e) {}
+    if (!ok) {
+      try {
+        var ta = document.createElement("textarea");
+        ta.value = t; ta.style.position = "fixed"; ta.style.opacity = "0";
+        document.body.appendChild(ta); ta.focus(); ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      } catch (e) {}
+    }
+  }
+
+  function injetarBotaoTraccarBT(){
+    document.querySelectorAll(".cardbtns").forEach(function (cb) {
+      if (cb.querySelector("[data-traccarbt]")) return;
+      var card = cb.closest(".card");
+      var delBtn = card ? card.querySelector('[data-act="del"]') : null;
+      var id = delBtn ? delBtn.getAttribute("data-id") : null;
+      if (!id) return;
+      var b = document.createElement("button");
+      b.className = "mini";
+      b.setAttribute("data-traccarbt", id);
+      b.title = 'Copiar URL pra colar no app "Traccar Client" (rastreio real em segundo plano)';
+      b.textContent = "🛰 URL Traccar";
+      b.addEventListener("click", function (ev) {
+        ev.preventDefault();
+        var d = (typeof driver === "function") ? driver(id) : null;
+        if (!d || !d.placa) return;
+        var placaBT = (typeof normalizePlaca === "function") ? normalizePlaca(d.placa) : d.placa;
+        var chave = chaveDaPlacaBT(placaBT);
+        var urlFinal = URL_FUNCTION_TRACCAR + "?chave=" + encodeURIComponent(chave);
+        copiarTextoBT(urlFinal);
+        var old = b.textContent;
+        b.textContent = "✅ Copiado!";
+        setTimeout(function () { b.textContent = old; }, 2500);
+      });
+      cb.appendChild(b);
+    });
+  }
+
+  setInterval(injetarBotaoTraccarBT, 1500);
+})();
+</script>
