@@ -1125,7 +1125,7 @@ function cardHTML(d){
     h += '<div class="chips">';
     h += '<span class="chip'+(d.tracking.velocidade>0?" mov":"")+'">'+(d.tracking.velocidade>0 ? d.tracking.velocidade+" km/h" : "parado")+"</span>";
     h += '<span class="ago">rastreio '+timeAgo(d.tracking.trackedAt)+"</span></div></div>";
-    h += (typeof minimapaCardHTML === "function") ? minimapaCardHTML(d) : "";
+    h += minimapaCardHTML(d);
   } else {
     h += '<button class="mini" style="width:100%;margin-top:10px;border:1px dashed var(--line);background:transparent" data-act="trkEdit" data-id="'+d.id+'">✏️ Adicionar rastreio</button>';
   }
@@ -7167,6 +7167,20 @@ Para desfazer: apagar este bloco - os botoes somem do painel principal, nada mai
 
   var mapasCard = {}; // id do motorista -> {mapa, marcador, lat, lng}
 
+  function criarMiniMapaCard(el, coord){
+    var mapa = L.map(el, {
+      zoomControl: false, attributionControl: false,
+      dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
+      boxZoom: false, keyboard: false, touchZoom: false, tap: false
+    }).setView([coord.lat, coord.lng], 14);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      subdomains: "abc", maxZoom: 19
+    }).addTo(mapa);
+    var marcador = L.marker([coord.lat, coord.lng], { icon: pinIconMinimapaCard() }).addTo(mapa);
+    setTimeout(function(){ try{ mapa.invalidateSize(); }catch(e){} }, 60);
+    return { mapa: mapa, marcador: marcador, lat: coord.lat, lng: coord.lng, el: el };
+  }
+
   function atualizarMiniMapasCard(){
     if (typeof L === "undefined" || typeof S === "undefined") return;
     var vistos = {};
@@ -7176,18 +7190,20 @@ Para desfazer: apagar este bloco - os botoes somem do painel principal, nada mai
       if (!el || !coord) return;
       vistos[d.id] = true;
       var entry = mapasCard[d.id];
+      /* PATCH_MINIMAPA_CARD_FIX_REDRAW v1 (14/09/2026): toda vez que o painel redesenha os
+         cards (sincronizacao, troca de aba Mapa/painel, etc.) o HTML e reconstruido do zero -
+         a div #cardmap-<id> de antes e destruida e uma NOVA e criada no lugar, mesmo com o
+         mesmo id. Sem checar isso, o mapa Leaflet ficava preso na div antiga (que nao esta
+         mais na tela) e a div nova ficava vazia pra sempre - o mapa "sumia" a cada
+         atualizacao. Agora, se a div atual nao é mais a mesma que o mapa Leaflet conhece,
+         descarta o mapa antigo e cria um novo na div atual. */
+      if (entry && entry.el !== el) {
+        try{ entry.mapa.remove(); }catch(e){}
+        entry = null;
+        delete mapasCard[d.id];
+      }
       if (!entry) {
-        var mapa = L.map(el, {
-          zoomControl: false, attributionControl: false,
-          dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
-          boxZoom: false, keyboard: false, touchZoom: false, tap: false
-        }).setView([coord.lat, coord.lng], 14);
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          subdomains: "abc", maxZoom: 19
-        }).addTo(mapa);
-        var marcador = L.marker([coord.lat, coord.lng], { icon: pinIconMinimapaCard() }).addTo(mapa);
-        mapasCard[d.id] = { mapa: mapa, marcador: marcador, lat: coord.lat, lng: coord.lng };
-        setTimeout(function(){ try{ mapa.invalidateSize(); }catch(e){} }, 60);
+        mapasCard[d.id] = criarMiniMapaCard(el, coord);
       } else if (entry.lat !== coord.lat || entry.lng !== coord.lng) {
         entry.marcador.setLatLng([coord.lat, coord.lng]);
         entry.mapa.setView([coord.lat, coord.lng], entry.mapa.getZoom());
@@ -7211,3 +7227,4 @@ Para desfazer: apagar este bloco - os botoes somem do painel principal, nada mai
   };
 })();
 </script>
+   h += (typeof minimapaCardHTML === "function") ? minimapaCardHTML(d) : "";
