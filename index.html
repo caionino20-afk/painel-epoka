@@ -7099,3 +7099,24 @@ Para desfazer: apagar este bloco - os botoes somem do painel principal, nada mai
 <!-- PATCH_FUNDO_CRUZ (imagem de fundo religiosa, pedido pessoal do dono da Transload) removido
      nesta versao EPOKA - era uma preferencia especifica daquele dono, nao faz sentido herdar
      por padrao pra uma empresa nova. Se a EPOKA quiser algum fundo/marca propria, e so pedir. -->
+<script>
+/* PATCH_AUTOBOOTSTRAP_SYNC_GRAOS (14/09/2026): configura automaticamente a sincronizacao Supabase
+   em dispositivos novos (ex: celular do motorista) quando abrem o link pela primeira vez e
+   ainda nao tem nenhuma configuracao salva localmente. Nunca sobrescreve config existente. */
+(function(){
+  try{
+    var SYNC_KEY = "painel-viagens-sync";
+    var atual = null;
+    try{ atual = JSON.parse(localStorage.getItem(SYNC_KEY)||"null"); }catch(e){ atual = null; }
+    var jaConfigurado = atual && atual.url && atual.key;
+    if(!jaConfigurado){
+      localStorage.setItem(SYNC_KEY, JSON.stringify({
+        url: "https://tqkqnmecanwvxegjiicz.supabase.co",
+        key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRxa3FubWVjYW53dnhlZ2ppaWN6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg1MTA1OTQsImV4cCI6MjEwNDA4NjU5NH0.Ps6khLH9GAkX4h861qfIVynS3-h-Sv2ZWM8dZReZ8Hg",
+        ativo: true,
+        quadro: "epoka"
+      }));
+    }
+  }catch(e){}
+})();
+</script>
