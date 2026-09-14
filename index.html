@@ -7227,3 +7227,72 @@ Para desfazer: apagar este bloco - os botoes somem do painel principal, nada mai
   };
 })();
 </script>
+
+<script>
+/* PATCH_LM_ENCERRA_LOCALIZACAO_AO_CONFIRMAR v1 (14/09/2026) - pedido do dono: nao faz sentido
+   manter a localizacao do motorista ligada por ate 30 dias (backstop de seguranca, ver
+   VALIDADE_MS no PATCH_LINK_MOTORISTA) so porque ele nao fechou a aba do celular - o corte hoje
+   so acontecia se a pagina fosse RECARREGADA (o PATCH_LINK_MOTORISTA ja bloqueia nesse caso, ver
+   "todasConcluidasLM"). Com este patch, assim que a ULTIMA entrega da viagem e confirmada, a
+   localizacao para de ser enviada NA HORA, sem precisar de reload. Funciona interceptando
+   navigator.geolocation.watchPosition (chamado pelo PATCH_RASTREIO_GPS_MOTORISTA, mais acima)
+   so pra guardar o watchId devolvido, e da clearWatch nele assim que percebe que a viagem
+   acabou - conferido logo apos cada confirmacao de entrega (clique no botao do motorista, mesmo
+   seletor do PATCH_LINK_MOTORISTA_CONFIRMAR_CONFIAVEL) e tambem por um intervalo leve de
+   seguranca (cobre qualquer outro jeito de confirmar). Para desfazer: apague este bloco. */
+(function(){
+  if (window.__PATCH_LM_ENCERRA_LOCALIZACAO_AO_CONFIRMAR) return;
+  window.__PATCH_LM_ENCERRA_LOCALIZACAO_AO_CONFIRMAR = "v1";
+
+  var qpEL = new URLSearchParams(location.search);
+  var motIdEL = qpEL.get("mot");
+  if (!motIdEL) return; // so roda na tela do motorista
+
+  var watchIdEL = null;
+  var jaEncerradoEL = false;
+
+  // intercepta watchPosition so pra guardar o id retornado - o PATCH_RASTREIO_GPS_MOTORISTA
+  // continua funcionando exatamente igual, so ganhamos o id pra poder parar depois
+  if (navigator.geolocation && navigator.geolocation.watchPosition && !navigator.geolocation.__origWatchPositionEL) {
+    var origWP = navigator.geolocation.watchPosition.bind(navigator.geolocation);
+    navigator.geolocation.__origWatchPositionEL = origWP;
+    navigator.geolocation.watchPosition = function(){
+      watchIdEL = origWP.apply(navigator.geolocation, arguments);
+      return watchIdEL;
+    };
+  }
+
+  function todasEntregasConcluidasEL(){
+    if (typeof driver !== "function" || typeof normalizePlaca !== "function") return false;
+    var placa = normalizePlaca(motIdEL);
+    var d = driver(motIdEL);
+    if (!d && placa) d = (S.drivers || []).find(function(x){ return normalizePlaca(x.placa) === placa; });
+    if (!d) return false;
+    if (d.status === "finalizado") return true;
+    return !!(d.entregas && d.entregas.length && d.entregas.every(function(e){ return e && e.concluida; }));
+  }
+
+  function pararLocalizacaoEL(){
+    if (jaEncerradoEL || !todasEntregasConcluidasEL()) return;
+    jaEncerradoEL = true;
+    if (watchIdEL !== null && navigator.geolocation.clearWatch) {
+      try { navigator.geolocation.clearWatch(watchIdEL); } catch (e) {}
+    }
+    var ov = document.getElementById("motoristaOverlayLM");
+    if (ov) {
+      ov.innerHTML = '<div style="max-width:480px;margin:80px auto 0;text-align:center;">'
+        + '<div style="font-size:40px;margin-bottom:8px;">✅</div>'
+        + '<div style="font-size:16px;color:#333;">Viagem finalizada — obrigado! A localização foi encerrada.</div>'
+        + '</div>';
+    }
+  }
+
+  document.addEventListener("click", function (ev) {
+    var btn = ev.target && ev.target.closest ? ev.target.closest('[data-lm-confirm="1"]') : null;
+    if (!btn) return;
+    setTimeout(pararLocalizacaoEL, 300);
+  }, true);
+
+  setInterval(pararLocalizacaoEL, 5000);
+})();
+</script>
