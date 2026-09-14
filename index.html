@@ -616,7 +616,7 @@ function temperaturaForaDoLimite(d, limite){
 }
 const STATUS_COM_ALARME = ["em_rota","no_cliente"];
 function alarmeVale(d){ return d && STATUS_COM_ALARME.indexOf(d.status) !== -1; }
-function emAlerta(d, limite){ return alarmeVale(d) && temperaturaForaDoLimite(d, limite); }
+function emAlerta(d, limite){ return false; /* GRAOS (14/09/2026): alerta de temperatura desativado */ }
 function resumoEntregas(d){
   const l = d.entregas || [];
   return { total:l.length, feitas:l.filter(e=>e.concluida).length };
@@ -1054,7 +1054,6 @@ function renderKpis(){
   let k = '<div class="kpis">';
   k += '<div class="kpi hero"><div class="lbl">Em viagem</div><div class="val">'+ativos+'</div><div class="sub2">veículo(s) ativo(s)</div></div>';
   k += '<div class="kpi'+(prob.length?' warn':'')+'"><div class="lbl">Ocorrências</div><div class="val">'+prob.length+'</div><div class="sub2">precisam de atenção</div></div>';
-  k += '<div class="kpi'+(hot.length?' hot':'')+'"><div class="lbl">Alertando</div><div class="val">'+hot.length+'</div><div class="sub2">'+S.tempLimite+'°C ou mais</div></div>';
   k += '<div class="kpi'+(cheg.length?' ok':'')+'"><div class="lbl">No ponto</div><div class="val">'+cheg.length+'</div><div class="sub2">chegando/no cliente</div></div>';
   k += '<div class="kpi"><div class="lbl">Entregas</div><div class="val">'+fei+'/'+tot+'</div><div class="sub2">concluídas hoje</div></div>';
   k += '</div>';
@@ -1111,9 +1110,6 @@ function cardHTML(d){
     h += '<label>Referência</label><input data-f="ref" value="'+esc(t.referencia||"")+'" placeholder="Ex: em Gtfoods - Paraíso do Norte" />';
     h += '<div class="four">';
     h += '<div><label>Km/h</label><input data-f="vel" type="number" value="'+(t.velocidade!=null?t.velocidade:"")+'" /></div>';
-    h += '<div><label>S1 °C</label><input data-f="s1" type="number" value="'+(tp[0]!=null?tp[0]:"")+'" /></div>';
-    h += '<div><label>S2 °C</label><input data-f="s2" type="number" value="'+(tp[1]!=null?tp[1]:"")+'" /></div>';
-    h += '<div><label>S3 °C</label><input data-f="s3" type="number" value="'+(tp[2]!=null?tp[2]:"")+'" /></div>';
     h += "</div>";
     h += '<div style="display:flex;gap:8px;margin-top:4px">';
     h += '<button class="mini" style="background:var(--route);color:#fff" data-act="trkSave" data-id="'+d.id+'">💾 Salvar</button>';
@@ -1128,19 +1124,6 @@ function cardHTML(d){
     h += '<button class="icobtn" data-act="trkEdit" data-id="'+d.id+'" title="Editar rastreio">✏️</button></div>';
     h += '<div class="chips">';
     h += '<span class="chip'+(d.tracking.velocidade>0?" mov":"")+'">'+(d.tracking.velocidade>0 ? d.tracking.velocidade+" km/h" : "parado")+"</span>";
-    (d.tracking.temps||[]).forEach((t,i)=>{
-      const vale = sensorVale(d.placa,i);
-      const bad = vale && alarmeVale(d) && t >= S.tempLimite;
-      const titulo = vale ? "S"+(i+1)+" — vale para o alarme" : "S"+(i+1)+" — ignorado no alarme (sensor fora do baú)";
-      h += '<span class="chip t'+(bad?" bad":"")+'" title="'+titulo+'"'+(vale?"":' style="opacity:.45"')+
-           ">🌡 "+t+"°C"+(bad?" ⚠":(vale?"":" ⃠"))+"</span>";
-    });
-    if(d.tracking.portaBauAberta !== undefined){
-      const bauAberto = d.tracking.portaBauAberta;
-      const bauDesde = d.tracking.portaBauDesde ? timeAgo(d.tracking.portaBauDesde) : "";
-      h += '<span class="chip'+(bauAberto?" bad":"")+'" title="Sensor de porta do baú (Ca2Track)">'+
-           "🚪 Baú "+(bauAberto?"aberto":"fechado")+(bauDesde?" — "+bauDesde:"")+"</span>";
-    }
     h += '<span class="ago">rastreio '+timeAgo(d.tracking.trackedAt)+"</span></div></div>";
   } else {
     h += '<button class="mini" style="width:100%;margin-top:10px;border:1px dashed var(--line);background:transparent" data-act="trkEdit" data-id="'+d.id+'">✏️ Adicionar rastreio</button>';
@@ -2192,6 +2175,12 @@ header::after{
 }
 @media (max-width:620px){ header::after{ display:none; } }
 
+/* GRAOS (14/09/2026): EPOKA area de graos nao monitora temperatura/porta do bau.
+   Escondido via CSS (em vez de removido do HTML) para nao quebrar nada que ainda
+   referencia esses elementos por id (#tempLimite, #cfgLimite, #tabSens etc). */
+.tempbox, #btnVoz, .aba[data-pag="alertas"], #pag-alertas, #stopbar { display:none !important; }
+
+
 /* 2) Modo escuro */
 html[data-tema="escuro"]{
   --bg:#100B24; --card:#171130; --ink:#F1EEFA; --muted:#9C93BE; --line:#2E2760;
@@ -2602,7 +2591,7 @@ var feitas=(S.drivers||[]).reduce(function(a,d){return a+((d.entregas||[]).filte
 var comHist=(S.drivers||[]).filter(function(d){return d.tempHist&&d.tempHist.length;});
 var h='';
 h+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">';
-[["Em rota",emrota],["No cliente",nocliente],["Em alerta °C",quentes],["Entregas",feitas+"/"+totEnt]].forEach(function(k){
+[["Em rota",emrota],["No cliente",nocliente],["Entregas",feitas+"/"+totEnt]].forEach(function(k){
 h+='<div style="background:var(--card);border:1px solid var(--line);border-radius:9px;padding:10px 14px;min-width:110px"><div style="font-size:22px;font-weight:700" class="display">'+k[1]+'</div><div style="font-size:12px;color:var(--muted)">'+k[0]+'</div></div>';
 });
 h+='</div>';
@@ -2613,25 +2602,12 @@ h+='<h4 style="margin:18px 0 6px">📦 Entregas por motorista</h4>';
 h+='<div style="border:1px solid var(--line);border-radius:9px;overflow:hidden">';
 ag.motoristas.forEach(function(m,i){ h+='<div style="display:flex;justify-content:space-between;padding:8px 12px;'+(i%2?'background:var(--bg)':'')+'"><span style="font-size:13px">'+esc(m.motorista)+'</span><span style="font-weight:700">'+m.feitas+'/'+m.total+'</span></div>'; });
 h+='</div>';
-h+='<h4 style="margin:18px 0 6px">🌡 Temperatura por veículo</h4>';
-if(!comHist.length){ h+='<p style="color:var(--muted);font-size:13px">O histórico começa a ser gravado assim que o rastreio traz temperatura.</p>'; }
-else{
-h+='<select id="__relVeic" class="field" style="margin-bottom:8px">'+comHist.map(function(d,i){return '<option value="'+i+'">'+esc(d.motorista||d.placa)+' — '+esc(d.placa||"")+'</option>';}).join("")+'</select>';
-h+='<div id="__relTempBox"></div>';
-}
 var wrap=document.getElementById("__relModal");
 if(!wrap){ wrap=document.createElement("div"); wrap.id="__relModal"; document.body.appendChild(wrap); }
 wrap.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:24px";
 wrap.innerHTML='<div style="background:var(--bg);max-width:720px;width:100%;border-radius:14px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
 +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 class="display" style="margin:0">📊 RELATÓRIOS</h3><div><button id="__relCsv" class="btn btn-teal" style="margin-right:8px">⬇ Exportar (Excel)</button><button id="__relFechar" class="btn btn-ghost" style="background:var(--asphalt);color:#fff">Fechar</button></div></div>'
 +h+'</div>';
-function pintaTemp(){
-var sel=document.getElementById("__relVeic"); if(!sel) return;
-var d=comHist[Number(sel.value)]; var r=_resumoTemp(d.tempHist);
-var box=document.getElementById("__relTempBox");
-box.innerHTML=_sparkline(d.tempHist)+(r?('<div style="display:flex;gap:14px;font-size:13px;margin-top:6px"><span>mín <b>'+r.min+'°C</b></span><span>máx <b style="color:'+(r.max>=S.tempLimite?'#C64545':'inherit')+'">'+r.max+'°C</b></span><span>média <b>'+r.avg+'°C</b></span><span style="color:var(--muted)">'+r.amostras+' leituras</span></div>'):'');
-}
-if(comHist.length){ pintaTemp(); document.getElementById("__relVeic").addEventListener("change",pintaTemp); }
 document.getElementById("__relFechar").addEventListener("click",function(){ wrap.style.display="none"; });
 wrap.addEventListener("click",function(e){ if(e.target===wrap) wrap.style.display="none"; });
 document.getElementById("__relCsv").addEventListener("click",function(){
