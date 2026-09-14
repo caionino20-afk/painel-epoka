@@ -5353,9 +5353,9 @@ function renderEntregaLM(container, d, idx, ov) {
     avisoMostradoGPS = true;
   }
 
-  function enviarPosicaoGPS(pos){
+  function enviarPosicaoGPS(pos, forcar){
     var agora = Date.now();
-    if (agora - ultimoEnvioGPS < INTERVALO_MIN_MS) return;
+    if (!forcar && agora - ultimoEnvioGPS < INTERVALO_MIN_MS) return;
     var d = acharDriverGPS();
     if (!d) return;
     ultimoEnvioGPS = agora;
@@ -5390,6 +5390,10 @@ function renderEntregaLM(container, d, idx, ov) {
 
   // espera a tela do motorista (PATCH_LINK_MOTORISTA) montar antes de comecar
   setTimeout(iniciarGPS, 1200);
+
+  // exposto pro PATCH_LM_RETOMA_LOCALIZACAO_AO_VOLTAR (mais abaixo) forcar uma leitura fresca
+  // assim que o motorista volta pra essa aba, sem esperar o proximo watchPosition natural
+  window.__enviarPosicaoGPS_LM = function (pos) { enviarPosicaoGPS(pos, true); };
 })();
 </script>
 </html>
@@ -7346,5 +7350,37 @@ Para desfazer: apagar este bloco - os botoes somem do painel principal, nada mai
   });
 
   pedirWakeLockWL();
+})();
+</script>
+
+<script>
+/* PATCH_LM_RETOMA_LOCALIZACAO_AO_VOLTAR v1 (14/09/2026) - pedido do dono: se o motorista sair da
+   aba (trocar de app, celular travar a tela sozinho) por alguns minutos, tudo bem ficar sem
+   rastreio durante esse intervalo - mas assim que ele voltar pra essa aba (destravar o celular
+   estando nela, ou trocar de volta pra ela vindo de outro app), a localizacao tem que voltar a
+   atualizar sozinha, sem ele precisar recarregar a pagina nem clicar em nada.
+   O navegador ja mantem o watchPosition (PATCH_RASTREIO_GPS_MOTORISTA, mais acima) ativo por
+   baixo dos panos mesmo com a aba oculta - so pausa/atrasa as atualizacoes enquanto ela nao esta
+   visivel. Este patch forca uma leitura de posicao IMEDIATA assim que a aba volta a ficar
+   visivel, em vez de esperar a proxima atualizacao natural do GPS (que pode demorar varios
+   minutos). IMPORTANTE - limite que nao tem como contornar so com codigo (navegador, nao app
+   nativo): isso so acontece quando o motorista volta PRA ESSA ABA especificamente. Se ele estiver
+   em outro app (WhatsApp etc.) quando destrava o celular, a localizacao so retoma quando ele
+   trocar de volta pra essa aba do navegador. Para desfazer: apague este bloco. */
+(function(){
+  if (window.__PATCH_LM_RETOMA_LOCALIZACAO_AO_VOLTAR) return;
+  window.__PATCH_LM_RETOMA_LOCALIZACAO_AO_VOLTAR = "v1";
+
+  var qpRV = new URLSearchParams(location.search);
+  if (!qpRV.get("mot")) return; // so roda na tela do motorista
+
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState !== "visible") return;
+    if (!("geolocation" in navigator)) return;
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      if (typeof window.__enviarPosicaoGPS_LM === "function") window.__enviarPosicaoGPS_LM(pos);
+    }, function () { /* sem sinal/permissao agora - o watchPosition normal ainda cobre em seguida */ },
+    { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 });
+  });
 })();
 </script>
