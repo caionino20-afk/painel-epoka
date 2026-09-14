@@ -1121,7 +1121,6 @@ function cardHTML(d){
     h += '<p class="pos">'+esc(d.tracking.posicao||"")+"</p>";
     if(d.tracking.referencia) h += '<p class="ref'+(at?" at":"")+'">'+(at?"📍 ":"")+esc(d.tracking.referencia)+"</p>";
     h += "</div>";
-    h += '<button class="icobtn" data-act="verMapa" data-id="'+d.id+'" title="Ver no mapa, ampliado">📍</button>';
     h += '<button class="icobtn" data-act="trkEdit" data-id="'+d.id+'" title="Editar rastreio">✏️</button></div>';
     h += '<div class="chips">';
     h += '<span class="chip'+(d.tracking.velocidade>0?" mov":"")+'">'+(d.tracking.velocidade>0 ? d.tracking.velocidade+" km/h" : "parado")+"</span>";
@@ -7145,7 +7144,7 @@ Para desfazer: apagar este bloco - os botoes somem do painel principal, nada mai
    tem coordenada (lat/lng do GPS do motorista, ou "lat,lng" digitado manualmente no texto de
    posicao). Nao mexe em nenhuma funcao existente. Para desfazer: apagar este bloco de <style>,
    o bloco de script logo abaixo, e a chamada "minimapaCardHTML(d)" dentro de cardHTML(). */
-.cardmap{height:120px;border-radius:7px;overflow:hidden;margin-top:8px;border:1px solid var(--line)}
+.cardmap{height:120px;border-radius:7px;overflow:hidden;margin-top:8px;border:1px solid var(--line);cursor:pointer}
 .cardmap .leaflet-control-zoom{display:none}
 .cardmap .leaflet-control-attribution{font-size:9px;opacity:.55}
 </style>
@@ -7157,7 +7156,7 @@ Para desfazer: apagar este bloco - os botoes somem do painel principal, nada mai
   window.minimapaCardHTML = function(d){
     var coord = coordDoMinimapaCard(d);
     if (!coord) return "";
-    return '<div class="cardmap" id="cardmap-' + esc(String(d.id)) + '"></div>';
+    return '<div class="cardmap" id="cardmap-' + esc(String(d.id)) + '" data-act="verMapa" data-id="' + esc(String(d.id)) + '" title="Ver no mapa, ampliado"></div>';
   };
 
   function coordDoMinimapaCard(d){
