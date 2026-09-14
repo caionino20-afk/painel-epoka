@@ -1121,6 +1121,7 @@ function cardHTML(d){
     h += '<p class="pos">'+esc(d.tracking.posicao||"")+"</p>";
     if(d.tracking.referencia) h += '<p class="ref'+(at?" at":"")+'">'+(at?"📍 ":"")+esc(d.tracking.referencia)+"</p>";
     h += "</div>";
+    h += '<button class="icobtn" data-act="verMapa" data-id="'+d.id+'" title="Ver no mapa, ampliado">📍</button>';
     h += '<button class="icobtn" data-act="trkEdit" data-id="'+d.id+'" title="Editar rastreio">✏️</button></div>';
     h += '<div class="chips">';
     h += '<span class="chip'+(d.tracking.velocidade>0?" mov":"")+'">'+(d.tracking.velocidade>0 ? d.tracking.velocidade+" km/h" : "parado")+"</span>";
@@ -1279,6 +1280,10 @@ document.addEventListener("click", (ev)=>{
   if(act==="fin"  && d){ d.status="finalizado"; touch(d); save(); render(); return; }
   if(act==="prob" && d){ d.problema=!d.problema; touch(d); save(); render(); return; }
   if(act==="trkEdit"){ S.editTracking=id; S.editEntregas=null; render(); return; }
+  if(act==="verMapa" && d){
+    if (typeof window.__focarMapaEmCaminhao === "function") window.__focarMapaEmCaminhao(d);
+    S.view = "mapa"; render(); return;
+  }
   if(act==="trkCancel"){ S.editTracking=null; render(); return; }
   if(act==="trkSave" && d){
     const box = el.closest(".edit");
@@ -6766,6 +6771,8 @@ Para desfazer: apagar este bloco - os botoes somem do painel principal, nada mai
 
   var mapa = null, tileAtual = null, temaAtual = null;
   var marcadores = {};
+  var focoPendente = null; // id do caminhao a ampliar no proximo desenho do mapa (PATCH_MAPA_FOCO)
+  window.__focarMapaEmCaminhao = function(d){ focoPendente = d && d.id; };
 
   function tileParaTema(tema){
     /* CartoDB dark_all parou de funcionar sem chave de API (10/09/2026) - usando sempre o tile padrao OSM, que e gratis e sem chave */
@@ -6870,6 +6877,14 @@ Para desfazer: apagar este bloco - os botoes somem do painel principal, nada mai
     Object.keys(marcadores).forEach(function(id){
       if(!vistos[id]){ mapa.removeLayer(marcadores[id]); delete marcadores[id]; }
     });
+
+    /* Botao "📍 Ver no mapa" de cada card (PATCH_MAPA_FOCO): amplia e centraliza no
+       caminhao clicado, em vez de deixar o mapa aberto no Brasil inteiro (zoom 4.3). */
+    if(focoPendente && marcadores[focoPendente]){
+      mapa.setView(marcadores[focoPendente].getLatLng(), 16);
+      marcadores[focoPendente].openPopup();
+      focoPendente = null;
+    }
 
     var msg = document.getElementById("mapaMsg");
     if(msg){
