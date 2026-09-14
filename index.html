@@ -1125,7 +1125,7 @@ function cardHTML(d){
     h += '<div class="chips">';
     h += '<span class="chip'+(d.tracking.velocidade>0?" mov":"")+'">'+(d.tracking.velocidade>0 ? d.tracking.velocidade+" km/h" : "parado")+"</span>";
     h += '<span class="ago">rastreio '+timeAgo(d.tracking.trackedAt)+"</span></div></div>";
-    h += minimapaCardHTML(d);
+    h += (typeof minimapaCardHTML === "function") ? minimapaCardHTML(d) : "";
   } else {
     h += '<button class="mini" style="width:100%;margin-top:10px;border:1px dashed var(--line);background:transparent" data-act="trkEdit" data-id="'+d.id+'">✏️ Adicionar rastreio</button>';
   }
@@ -7211,4 +7211,3 @@ Para desfazer: apagar este bloco - os botoes somem do painel principal, nada mai
   };
 })();
 </script>
-   h += (typeof minimapaCardHTML === "function") ? minimapaCardHTML(d) : "";
