@@ -7468,3 +7468,72 @@ Para desfazer: apagar este bloco - os botoes somem do painel principal, nada mai
   setInterval(injetarBotaoTraccarBT, 1500);
 })();
 </script>
+
+<script>
+/* PATCH_LM_LINK_GOOGLE_MAPS v1 (14/09/2026) - pedido do dono: alternativa que nao pede nenhum
+   app novo pro motorista - ele mesmo ativa "Compartilhamento de localizacao" > "Criar link" no
+   Google Maps (que ja tem em qualquer celular) e manda esse link pro escritorio (WhatsApp etc).
+   Este patch so guarda esse link colado no card do caminhao e da um atalho pra abrir numa aba
+   nova - NAO ha API do Google pra puxar essa localizacao pra dentro do nosso mapa/card, entao
+   fica uma aba separada por caminhao, sem historico gravado no nosso banco (limite do Google,
+   nao da nossa implementacao). Clique esquerdo abre o link salvo (ou pede pra colar um, se ainda
+   nao tiver); clique direito edita/substitui o link (mesmo padrao do botao de WhatsApp que ja
+   existe no card). So aparece na tela do escritorio. Para desfazer: apague este bloco. */
+(function(){
+  if (window.__PATCH_LM_LINK_GOOGLE_MAPS) return;
+  window.__PATCH_LM_LINK_GOOGLE_MAPS = "v1";
+
+  var qpGM = new URLSearchParams(location.search);
+  if (qpGM.get("mot")) return; // nunca na tela do motorista
+
+  function pedirLinkGM(atual){
+    return window.prompt(
+      'Cole o link que o motorista mandou (Google Maps > toque na foto de perfil > "Compartilhamento de localização" > "Compartilhar localização" > "Criar link"):',
+      atual || ""
+    );
+  }
+
+  function injetarBotaoGM(){
+    document.querySelectorAll(".cardbtns").forEach(function (cb) {
+      if (cb.querySelector("[data-gmapsbt]")) return;
+      var card = cb.closest(".card");
+      var delBtn = card ? card.querySelector('[data-act="del"]') : null;
+      var id = delBtn ? delBtn.getAttribute("data-id") : null;
+      if (!id) return;
+      var b = document.createElement("button");
+      b.className = "mini";
+      b.setAttribute("data-gmapsbt", id);
+      b.textContent = "🗺️ Google Maps";
+      b.title = "Abrir localização em tempo real que o motorista compartilhou (botão direito cola/edita o link)";
+      b.addEventListener("click", function (ev) {
+        ev.preventDefault();
+        var d = (typeof driver === "function") ? driver(id) : null;
+        if (!d) return;
+        if (d.linkGoogleMapsLM) {
+          window.open(d.linkGoogleMapsLM, "_blank", "noopener");
+          return;
+        }
+        var novo = pedirLinkGM("");
+        if (novo && novo.trim()) {
+          d.linkGoogleMapsLM = novo.trim();
+          if (typeof touch === "function") touch(d);
+          if (typeof save === "function") save();
+        }
+      });
+      b.addEventListener("contextmenu", function (ev) {
+        ev.preventDefault();
+        var d = (typeof driver === "function") ? driver(id) : null;
+        if (!d) return;
+        var novo = pedirLinkGM(d.linkGoogleMapsLM || "");
+        if (novo === null) return; // cancelou
+        d.linkGoogleMapsLM = novo.trim();
+        if (typeof touch === "function") touch(d);
+        if (typeof save === "function") save();
+      });
+      cb.appendChild(b);
+    });
+  }
+
+  setInterval(injetarBotaoGM, 1500);
+})();
+</script>
