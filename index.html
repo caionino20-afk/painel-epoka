@@ -1125,6 +1125,7 @@ function cardHTML(d){
     h += '<div class="chips">';
     h += '<span class="chip'+(d.tracking.velocidade>0?" mov":"")+'">'+(d.tracking.velocidade>0 ? d.tracking.velocidade+" km/h" : "parado")+"</span>";
     h += '<span class="ago">rastreio '+timeAgo(d.tracking.trackedAt)+"</span></div></div>";
+    h += minimapaCardHTML(d);
   } else {
     h += '<button class="mini" style="width:100%;margin-top:10px;border:1px dashed var(--line);background:transparent" data-act="trkEdit" data-id="'+d.id+'">✏️ Adicionar rastreio</button>';
   }
@@ -7118,5 +7119,95 @@ Para desfazer: apagar este bloco - os botoes somem do painel principal, nada mai
       }));
     }
   }catch(e){}
+})();
+</script>
+
+<style>
+/* PATCH_MINIMAPA_CARD v1 (14/09/2026): mini mapa ao vivo dentro do card do motorista (pedido do
+   dono: em vez de so mostrar "lat,lng" em texto, ver a posicao de relance no proprio card, sem
+   precisar clicar em "Mapa"). Usa a MESMA lib Leaflet + tiles OpenStreetMap que o mapa da frota
+   (#mapaEl / PATCH_MAPA) ja carrega - sem custo extra de biblioteca. So aparece quando o card ja
+   tem coordenada (lat/lng do GPS do motorista, ou "lat,lng" digitado manualmente no texto de
+   posicao). Nao mexe em nenhuma funcao existente. Para desfazer: apagar este bloco de <style>,
+   o bloco de script logo abaixo, e a chamada "minimapaCardHTML(d)" dentro de cardHTML(). */
+.cardmap{height:120px;border-radius:7px;overflow:hidden;margin-top:8px;border:1px solid var(--line)}
+.cardmap .leaflet-control-zoom{display:none}
+.cardmap .leaflet-control-attribution{font-size:9px;opacity:.55}
+</style>
+<script>
+(function(){
+  if (window.__PATCH_MINIMAPA_CARD) return;
+  window.__PATCH_MINIMAPA_CARD = "v1";
+
+  window.minimapaCardHTML = function(d){
+    var coord = coordDoMinimapaCard(d);
+    if (!coord) return "";
+    return '<div class="cardmap" id="cardmap-' + esc(String(d.id)) + '"></div>';
+  };
+
+  function coordDoMinimapaCard(d){
+    if (d.tracking && typeof d.tracking.lat === "number" && typeof d.tracking.lng === "number") {
+      return { lat: d.tracking.lat, lng: d.tracking.lng };
+    }
+    var txt = d.tracking && d.tracking.posicao;
+    if (txt) {
+      var m = String(txt).match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
+      if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+    }
+    return null;
+  }
+
+  function pinIconMinimapaCard(){
+    return (typeof L !== "undefined") ? L.divIcon({
+      className: "",
+      html: '<div class="mpin" style="background:var(--route,#2f6fed)"></div>',
+      iconSize: [22, 22], iconAnchor: [11, 22], popupAnchor: [0, -20]
+    }) : null;
+  }
+
+  var mapasCard = {}; // id do motorista -> {mapa, marcador, lat, lng}
+
+  function atualizarMiniMapasCard(){
+    if (typeof L === "undefined" || typeof S === "undefined") return;
+    var vistos = {};
+    (S.drivers || []).forEach(function(d){
+      var coord = coordDoMinimapaCard(d);
+      var el = document.getElementById("cardmap-" + d.id);
+      if (!el || !coord) return;
+      vistos[d.id] = true;
+      var entry = mapasCard[d.id];
+      if (!entry) {
+        var mapa = L.map(el, {
+          zoomControl: false, attributionControl: false,
+          dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
+          boxZoom: false, keyboard: false, touchZoom: false, tap: false
+        }).setView([coord.lat, coord.lng], 14);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          subdomains: "abc", maxZoom: 19
+        }).addTo(mapa);
+        var marcador = L.marker([coord.lat, coord.lng], { icon: pinIconMinimapaCard() }).addTo(mapa);
+        mapasCard[d.id] = { mapa: mapa, marcador: marcador, lat: coord.lat, lng: coord.lng };
+        setTimeout(function(){ try{ mapa.invalidateSize(); }catch(e){} }, 60);
+      } else if (entry.lat !== coord.lat || entry.lng !== coord.lng) {
+        entry.marcador.setLatLng([coord.lat, coord.lng]);
+        entry.mapa.setView([coord.lat, coord.lng], entry.mapa.getZoom());
+        entry.lat = coord.lat; entry.lng = coord.lng;
+      }
+    });
+    // limpa mapas de motoristas que sairam da tela (evita vazamento de memoria)
+    Object.keys(mapasCard).forEach(function(id){
+      if (!vistos[id]) {
+        try{ mapasCard[id].mapa.remove(); }catch(e){}
+        delete mapasCard[id];
+      }
+    });
+  }
+
+  var _renderOrigMinimapaCard = window.render;
+  window.render = function(){
+    var r = _renderOrigMinimapaCard.apply(this, arguments);
+    setTimeout(atualizarMiniMapasCard, 30);
+    return r;
+  };
 })();
 </script>
