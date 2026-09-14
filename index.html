@@ -7310,3 +7310,41 @@ Para desfazer: apagar este bloco - os botoes somem do painel principal, nada mai
   setInterval(pararLocalizacaoEL, 5000);
 })();
 </script>
+
+<script>
+/* PATCH_LM_WAKE_LOCK v1 (14/09/2026) - pedido do dono: motorista nao vai instalar app separado
+   pra rastreio, entao a solucao fica sendo o proprio link do navegador (PATCH_RASTREIO_GPS_MOTORISTA,
+   mais acima). A melhoria possivel dentro desse limite e usar a Wake Lock API pra impedir que a
+   TELA do celular apague sozinha por inatividade enquanto a pagina do motorista estiver aberta -
+   isso cobre o caso mais comum de perda de rastreio (celular fica parado no painel do caminhao
+   com a tela ligada, mas apaga sozinha depois de alguns segundos parado e o navegador suspende
+   o JS/GPS). NAO resolve se o motorista travar a tela manualmente (botao fisico) ou trocar de
+   app - nesses casos o rastreio para e so retoma quando ele volta pra aba (comportamento de
+   sempre, ver PATCH_LINK_MOTORISTA_PAUSA_SYNC_VISIBILITY). Sem suporte no navegador (mais raro
+   hoje em dia): nao quebra nada, so nao aplica o wake lock. Para desfazer: apague este bloco. */
+(function(){
+  if (window.__PATCH_LM_WAKE_LOCK) return;
+  window.__PATCH_LM_WAKE_LOCK = "v1";
+
+  var qpWL = new URLSearchParams(location.search);
+  if (!qpWL.get("mot")) return; // so roda na tela do motorista
+
+  var wakeLockWL = null;
+
+  function pedirWakeLockWL(){
+    if (!("wakeLock" in navigator)) return;
+    navigator.wakeLock.request("screen").then(function (lock) {
+      wakeLockWL = lock;
+      lock.addEventListener("release", function () { wakeLockWL = null; });
+    }).catch(function () { /* permissao negada ou tela ja nao visivel - ignora silenciosamente */ });
+  }
+
+  // o wake lock e liberado automaticamente quando a aba fica oculta; ao voltar a ficar
+  // visivel (motorista reabre o app do navegador), pede de novo
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "visible" && !wakeLockWL) pedirWakeLockWL();
+  });
+
+  pedirWakeLockWL();
+})();
+</script>
