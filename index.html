@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Painel de Viagens — TRANSLOAD</title>
+<title>Painel de Viagens — EPOKA TRANSPORTES</title>
 <script>
 /* PATCH_AUTOATUALIZA_VERSAO v1 (08/09/2026) - o GitHub Pages serve este arquivo com
    Cache-Control: max-age=600 (10 minutos) e nao da pra mudar isso (hospedagem estatica, sem
@@ -19,7 +19,7 @@
    sessionStorage evita loop) navegando pra uma URL com parametro novo (forca buscar a versao
    atual). So dispara na entrada de uma sessao/aba nova - nao fica checando toda hora, entao nao
    interrompe ninguem no meio de um uso ja em andamento. */
-window.__VERSAO_PUBLICADA_PAINEL__ = "2026-09-08T19:37:27Z";
+window.__VERSAO_PUBLICADA_PAINEL__ = "2026-09-14T00:00:00Z";
 (function(){
   try {
     if (sessionStorage.getItem("__autoUpdateCheckedPainel")) return;
@@ -394,7 +394,7 @@ AOS-7E44 | FIM"></textarea>
     <div class="abas">
       <button class="aba sel" data-pag="usuarios">👥 Usuários</button>
       <button class="aba" data-pag="equipe">🔄 Equipe</button>
-      <button class="aba" data-pag="api">🛰 Rastreamento automático</button>
+      <button class="aba" data-pag="api">🛰 Rastreamento (GPS motorista)</button>
       <button class="aba" data-pag="alertas">🌡 Alertas</button>
       <button class="aba" data-pag="dados">💾 Dados</button>
     </div>
@@ -439,7 +439,7 @@ AOS-7E44 | FIM"></textarea>
           <button class="acao" id="btnTestarSync">Testar e ativar</button>
         </div>
         <div class="linha">
-          <div class="campo"><label>Nome do quadro</label><input type="text" id="sbQuadro" value="transload" style="width:150px" /></div>
+          <div class="campo"><label>Nome do quadro</label><input type="text" id="sbQuadro" value="epoka" style="width:150px" /></div>
           <div class="campo"><label>&nbsp;</label>
             <label class="lembrar" style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
               <input type="checkbox" id="sbAtivo" /> Sincronização ligada
@@ -468,27 +468,33 @@ create policy "acesso do painel" on painel
         </details>
       </div>
       <div class="pag" id="pag-api">
-        <h4>Conexão com o CA2Track (API Transrisco)</h4>
+        <h4>Rastreamento automático (GPS do motorista)</h4>
         <p class="ajuda">
-          Com a API, o painel busca posição e temperatura <b>sozinho</b>, sem copiar e colar.
-          Use o mesmo usuário e senha com que você entra no Ca2Track.
+          A EPOKA não usa um provedor externo tipo Ca2Track. A posição de cada caminhão vem do
+          <b>próprio celular do motorista</b>: quando ele abre o link individual da viagem
+          (botão <b>🔗 Link mot.</b> em cada card), a página pede permissão de localização e
+          manda a posição pro painel automaticamente, a cada poucos segundos, enquanto a aba
+          dele estiver aberta.
         </p>
-        <div class="aviso" id="avisoApi">
-          <b>Faça o teste antes de ligar o automático.</b> O navegador só deixa esta página conversar com o
-          servidor do CA2Track se o servidor autorizar (uma regra chamada CORS). Se o teste falhar por causa
-          disso, não é senha errada — é preciso pedir ao suporte do CA2 que libere o acesso. O teste abaixo diz
-          exatamente qual é o caso.
+        <div class="aviso">
+          Não precisa de usuário/senha nem de nenhuma configuração aqui — é automático assim que o
+          motorista aceita o pedido de localização no celular dele. Se o card mostrar "sem sinal",
+          o motorista provavelmente fechou a aba, está sem internet, ou ainda não abriu o link.
         </div>
+      </div>
+      <div class="pag" id="pag-api-legado" style="display:none">
+        <!-- Painel antigo do Ca2Track (Transload), mantido oculto e intacto pra não quebrar
+             nenhuma função que ainda referencia estes campos por id. Não aparece pra ninguém.
+             Se a EPOKA um dia integrar outro provedor de rastreio, dá pra reaproveitar. -->
+        <div class="aviso" id="avisoApi"></div>
         <div class="linha">
           <div class="campo"><label>Usuário do Ca2Track</label><input type="text" id="apiUsr" autocapitalize="off" spellcheck="false" /></div>
           <div class="campo"><label>Senha</label><input type="password" id="apiPwd" /></div>
           <button class="acao" id="btnTestarApi">Testar conexão</button>
         </div>
         <label class="lembrar" style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);margin:-4px 0 14px;cursor:pointer">
-          <input type="checkbox" id="apiSalvar" checked /> Salvar a senha neste computador (necessário para o automático funcionar sozinho)
+          <input type="checkbox" id="apiSalvar" /> Salvar a senha neste computador (necessário para o automático funcionar sozinho)
         </label>
-        <h4 style="margin-top:18px">Atualização automática</h4>
-        <p class="ajuda">Enquanto o painel estiver aberto, ele busca os dados de tempos em tempos.</p>
         <div class="linha">
           <label class="lembrar" style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="apiAuto" /> Ligado
@@ -497,10 +503,7 @@ create policy "acesso do painel" on painel
           <button class="acao sec" id="btnSincAgora">↻ Atualizar agora</button>
         </div>
         <div class="ok" id="okApi"></div>
-        <details style="margin-top:14px">
-          <summary style="cursor:pointer;font-size:12px;color:var(--muted)">Ver resposta bruta do servidor (para ajustes)</summary>
-          <pre id="apiBruto" style="font-size:10.5px;background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:10px;max-height:260px;overflow:auto;white-space:pre-wrap;word-break:break-word;margin-top:8px">— faça um teste para ver —</pre>
-        </details>
+        <pre id="apiBruto" style="display:none"></pre>
       </div>
       <div class="pag" id="pag-alertas">
         <h4>Temperatura</h4>
@@ -552,25 +555,15 @@ create policy "acesso do painel" on painel
 </div>
 </div><!-- /#app -->
 <script>
-/* Pre-configuracao TRANSLOAD (Claude, 14/08/2026): quadro compartilhado + usuario lucas */
+/* Pre-configuracao EPOKA: so define o nome do quadro compartilhado. A URL e a chave do
+   Supabase NAO ficam mais hardcoded aqui - preencha em Configuracoes -> Quadro compartilhado
+   e clique "Testar e ativar" (uma vez, em qualquer computador; o navegador guarda depois). */
 try{
   var K="painel-viagens-sync";
   var atual={};
   try{ atual=JSON.parse(localStorage.getItem(K)||"{}"); }catch(e){}
-  atual.url="https://iiwzzebmibkhmhiryvui.supabase.co";
-  atual.key="sb_publishable_jlHskZx4KedVWQFZawookw_V_hmaABk";
-  if(!atual.quadro) atual.quadro="transload";
-  if(atual.ativo===undefined) atual.ativo=true;
+  if(!atual.quadro) atual.quadro="epoka";
   localStorage.setItem(K, JSON.stringify(atual));
-}catch(e){}
-try{
-  var KU="painel-viagens-usuarios";
-  var us=[];
-  try{ us=JSON.parse(localStorage.getItem(KU)||"[]"); if(!Array.isArray(us)) us=[]; }catch(e){ us=[]; }
-  if(!us.some(function(x){return x && x.u==="lucas"})){
-    us.push({u:"lucas", nome:"Lucas", h:"vejxmd"});
-    localStorage.setItem(KU, JSON.stringify(us));
-  }
 }catch(e){}
 </script>
 <script>
@@ -584,22 +577,10 @@ const STAGES = [
   { key:"no_cliente", label:"No cliente", icon:"📍", color:"#7C6FA8", fundo:"#F1EEF7", caixa:"#E5DFF0" },
   { key:"finalizado", label:"Finalizado", icon:"✅", color:"#3C9B5F", fundo:"#EAF6EE", caixa:"#D9EDE1" },
 ];
-const ENTREGAS_SEED = {
-  GAR0E27: [ { cliente:"GR Serviços e Alimentação LTDA", destino:"São Paulo/SP", notas:["194016"], concluida:false } ],
-};
-const SEED = [
-  { motorista:"THIAGO RODRIGUES XAVIER",  placa:"BDN-2400", mdfe:"862" },
-  { motorista:"LUCIANO APARECIDO JACINTO",placa:"GAR-0E27", mdfe:"861" },
-  { motorista:"VILMAR BARDUCCO TARTARI",  placa:"QAO-9320", mdfe:"860" },
-  { motorista:"ALEX BRUNO BAVELONI CESAR",placa:"TJU-0D81", mdfe:"859" },
-  { motorista:"DOUGLAS EMANOEL DOS SANTOS",placa:"AZR-3073",mdfe:"858" },
-  { motorista:"LUIZ HENRIQUE RONCA VIEIRA",placa:"OIQ-5F07",mdfe:"856" },
-  { motorista:"GUSTAVO FRANCO GAZINEU",   placa:"CZB-1H88", mdfe:"855" },
-  { motorista:"LUCIANO ALVES DA SILVA",   placa:"AOS-7E44", mdfe:"853" },
-  { motorista:"WILLIAN MARIO DOS SANTOS", placa:"ARZ-2297", mdfe:"843" },
-  { motorista:"JOAO CARLOS FRANA",        placa:"AJZ-2I38", mdfe:"842" },
-  { motorista:"LUCIAN DASMASCENO DA SILVA",placa:"EQU-8J59",mdfe:"838" },
-];
+/* EPOKA comeca com o quadro vazio - nao herda motoristas/entregas de exemplo da Transload.
+   Cadastre as viagens pelo botao "+ Nova viagem" no painel. */
+const ENTREGAS_SEED = {};
+const SEED = [];
 const $ = (id) => document.getElementById(id);
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 function normalizePlaca(p){ return String(p||"").toUpperCase().replace(/[^A-Z0-9]/g,""); }
@@ -1448,7 +1429,7 @@ function abrirCfg(){
   const sc = lerSync();
   $("sbUrl").value = sc.url || "";
   $("sbKey").value = sc.key || "";
-  $("sbQuadro").value = sc.quadro || "transload";
+  $("sbQuadro").value = sc.quadro || "epoka";
   $("sbAtivo").checked = !!sc.ativo;
 }
 function fecharCfg(){ $("cfg").className = ""; }
@@ -1587,7 +1568,7 @@ function sbHeaders(c){
   return { "apikey": c.key, "Authorization": "Bearer " + c.key, "Content-Type": "application/json" };
 }
 async function sbLer(c){
-  const u = c.url.replace(/\/+$/,"") + "/rest/v1/painel?id=eq." + encodeURIComponent(c.quadro||"transload") + "&select=*";
+  const u = c.url.replace(/\/+$/,"") + "/rest/v1/painel?id=eq." + encodeURIComponent(c.quadro||"epoka") + "&select=*";
   const r = await fetch(u, { headers: sbHeaders(c) });
   if(!r.ok) throw new Error("HTTP " + r.status + " ao ler");
   const j = await r.json();
@@ -1595,7 +1576,7 @@ async function sbLer(c){
 }
 async function sbGravar(c, dados){
   const u = c.url.replace(/\/+$/,"") + "/rest/v1/painel";
-  const corpo = [{ id: c.quadro||"transload", dados: dados, atualizado_em: new Date().toISOString(), por: usuarioAtual()||"painel" }];
+  const corpo = [{ id: c.quadro||"epoka", dados: dados, atualizado_em: new Date().toISOString(), por: usuarioAtual()||"painel" }];
   const r = await fetch(u, { method:"POST",
     headers: Object.assign(sbHeaders(c), {"Prefer":"resolution=merge-duplicates,return=minimal"}),
     body: JSON.stringify(corpo) });
@@ -2032,7 +2013,7 @@ function salvarSyncDaTela(){
   const c = {
     url: $("sbUrl").value.trim(),
     key: $("sbKey").value.trim(),
-    quadro: ($("sbQuadro").value.trim() || "transload"),
+    quadro: ($("sbQuadro").value.trim() || "epoka"),
     ativo: $("sbAtivo").checked,
   };
   gravarSync(c);
@@ -2198,15 +2179,19 @@ else setTimeout(()=>$("usr").focus(), 80);
   else setTimeout(init,0);
 })();
 </script>
-<style id="tema-transload">
-/* 1) Logo TRANSLOAD como marca d'agua no cabecalho (nao mexe em nenhum botao) */
-header{
-  background-image:url(data:image/png;base64,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);
-  background-repeat:no-repeat;
-  background-position:right 22px top 10px;   /* canto superior direito, area livre */
-  background-size:auto 74px;
-}                                  /* fica no fundo: nao desloca nem altera nenhum botao */
-@media (max-width:620px){ header{ background-image:none; } }
+<style id="tema-epoka">
+/* Marca d'agua no cabecalho: a logo da Transload foi removida (nao e da EPOKA). Se a EPOKA
+   quiser uma logo aqui, troque este bloco por um PNG em base64 (mesmo esquema de antes: canto
+   superior direito, ~74px de altura, some no celular). Por enquanto, so o nome em texto. */
+header{ position:relative; }
+header::after{
+  content:"EPOKA TRANSPORTES";
+  position:absolute; right:22px; top:14px;
+  font-family:'Big Shoulders Display',sans-serif; font-weight:700;
+  font-size:20px; letter-spacing:.5px; color:var(--muted); opacity:.55;
+  pointer-events:none;
+}
+@media (max-width:620px){ header::after{ display:none; } }
 
 /* 2) Modo escuro */
 html[data-tema="escuro"]{
@@ -2652,7 +2637,7 @@ document.getElementById("__relFechar").addEventListener("click",function(){ wrap
 wrap.addEventListener("click",function(e){ if(e.target===wrap) wrap.style.display="none"; });
 document.getElementById("__relCsv").addEventListener("click",function(){
 var csv=" "+_csv(S.drivers,S.arquivo,Date.now());
-var a=document.createElement("a"); a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv); a.download="relatorio-transload.csv"; document.body.appendChild(a); a.click(); a.remove();
+var a=document.createElement("a"); a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv); a.download="relatorio-epoka.csv"; document.body.appendChild(a); a.click(); a.remove();
 });
 }
 function _injetarBotao(){
@@ -3857,105 +3842,9 @@ html[data-tema="preto"] .badge-next{ background:rgba(59,140,130,.28)!important; 
 .mini{font-size:12px!important}
 .semnf span{font-size:11.5px!important}
 </style>
-<script>
-/* PATCH_VERSICULO_DIA v1 - pedido do dono, 21/08/2026: um versiculo da biblia no espaco
-   vazio do cabecalho, embaixo dos botoes. Troca sozinho todo dia (lista fixa aqui no
-   arquivo, escolhida pelo dia do ano — nao depende de internet nem de API externa, entao
-   nunca fica quebrado). A lista tem 60 versiculos; depois de 60 dias comeca a repetir.
-   Para desfazer, apague este bloco. */
-(function(){
-  if (window.__PATCH_VERSICULO_DIA) return;
-  window.__PATCH_VERSICULO_DIA = "v1";
-  var VERSOS = [
-    {ref:"Salmos 23:1", txt:"O Senhor é o meu pastor; nada me faltará."},
-    {ref:"Provérbios 3:5-6", txt:"Confia no Senhor de todo o teu coração e não te estribes no teu próprio entendimento. Reconhece-o em todos os teus caminhos, e ele endireitará as tuas veredas."},
-    {ref:"Isaías 41:10", txt:"Não temas, porque eu sou contigo; não te assombres, porque eu sou o teu Deus; eu te fortaleço, e te ajudo, e te sustento com a destra da minha justiça."},
-    {ref:"Filipenses 4:13", txt:"Posso todas as coisas naquele que me fortalece."},
-    {ref:"Jeremias 29:11", txt:"Porque eu bem sei os pensamentos que penso de vós, diz o Senhor; pensamentos de paz, e não de mal, para vos dar o fim que esperais."},
-    {ref:"Josué 1:9", txt:"Não to mandei eu? Esforça-te, e tem bom ânimo; não pasmes, nem te espantes, porque o Senhor teu Deus é contigo, por onde quer que andares."},
-    {ref:"Salmos 121:1-2", txt:"Elevo os meus olhos para os montes, de onde vem o meu socorro. O meu socorro vem do Senhor, que fez o céu e a terra."},
-    {ref:"Romanos 8:28", txt:"E sabemos que todas as coisas contribuem juntamente para o bem daqueles que amam a Deus."},
-    {ref:"Provérbios 16:3", txt:"Confia ao Senhor as tuas obras, e teus pensamentos serão estabelecidos."},
-    {ref:"Salmos 37:5", txt:"Entrega o teu caminho ao Senhor; confia nele, e ele o fará."},
-    {ref:"Mateus 6:34", txt:"Não vos inquieteis, pois, pelo dia de amanhã, porque o dia de amanhã cuidará de si mesmo. Basta a cada dia o seu mal."},
-    {ref:"2 Coríntios 5:7", txt:"Porque andamos por fé, e não por vista."},
-    {ref:"Salmos 91:11", txt:"Porque aos seus anjos dará ordem a teu respeito, para te guardarem em todos os teus caminhos."},
-    {ref:"Provérbios 11:25", txt:"A alma generosa engordará, e o que regar também será regado."},
-    {ref:"Isaías 40:31", txt:"Mas os que esperam no Senhor renovarão as forças, subirão com asas como águias; correrão, e não se cansarão; caminharão, e não se fatigarão."},
-    {ref:"Salmos 34:8", txt:"Provai, e vede que o Senhor é bom; bem-aventurado o homem que nele confia."},
-    {ref:"Deuteronômio 31:6", txt:"Esforçai-vos, e animai-vos; não temais, nem vos espanteis diante deles, porque o Senhor teu Deus é o que vai contigo; não te deixará, nem te desamparará."},
-    {ref:"Salmos 118:24", txt:"Este é o dia que o Senhor fez; regozijemo-nos, e alegremo-nos nele."},
-    {ref:"Provérbios 22:29", txt:"Viste um homem diligente na sua obra? Perante reis será posto; não será posto perante os de baixa sorte."},
-    {ref:"Colossenses 3:23", txt:"E tudo quanto fizerdes, fazei-o de todo o coração, como ao Senhor, e não aos homens."},
-    {ref:"Salmos 27:1", txt:"O Senhor é a minha luz e a minha salvação; a quem temerei? O Senhor é a força da minha vida; de quem me recearei?"},
-    {ref:"Gálatas 6:9", txt:"E não nos cansemos de fazer o bem, porque a seu tempo ceifaremos, se não houvermos desfalecido."},
-    {ref:"Provérbios 10:4", txt:"O que trabalha com mão remissa empobrece, mas a mão dos diligentes enriquece."},
-    {ref:"Salmos 55:22", txt:"Lança a tua carga sobre o Senhor, e ele te susterá; não permitirá jamais que o justo seja abalado."},
-    {ref:"Mateus 11:28", txt:"Vinde a mim, todos os que estais cansados e oprimidos, e eu vos aliviarei."},
-    {ref:"1 Coríntios 10:13", txt:"Deus é fiel, o qual não vos deixará tentar acima do que podeis, antes com a tentação dará também o escape, para que a possais suportar."},
-    {ref:"Salmos 46:1", txt:"Deus é o nosso refúgio e fortaleza, socorro bem presente na angústia."},
-    {ref:"Provérbios 3:9-10", txt:"Honra ao Senhor com a tua fazenda, e com as primícias de toda a tua renda; e se encherão os teus celeiros."},
-    {ref:"Efésios 4:32", txt:"Antes sede uns para com os outros benignos, misericordiosos, perdoando-vos uns aos outros, como também Deus vos perdoou em Cristo."},
-    {ref:"Salmos 30:5", txt:"Porque a sua ira dura só um momento; no seu favor está a vida. O choro pode durar uma noite, mas a alegria vem pela manhã."},
-    {ref:"Tiago 1:5", txt:"E, se algum de vós tem falta de sabedoria, peça-a a Deus, que a todos dá liberalmente, e o não lança em rosto, e ser-lhe-á dada."},
-    {ref:"Salmos 143:8", txt:"Faze-me ouvir a tua benignidade pela manhã, pois em ti confio; faze-me saber o caminho que devo seguir, porque a ti levanto a minha alma."},
-    {ref:"Provérbios 27:1", txt:"Não te glories do dia de amanhã, porque não sabes o que produzirá o dia."},
-    {ref:"Habacuque 3:19", txt:"O Senhor Jeová é a minha força, e fará os meus pés como os das cervas, e me fará andar sobre as minhas alturas."},
-    {ref:"Salmos 16:8", txt:"Tenho posto o Senhor continuamente diante de mim; por isso, que ele está à minha direita, não vacilarei."},
-    {ref:"Lucas 6:38", txt:"Dai, e dar-se-vos-á; boa medida, recalcada, sacudida e transbordando, vos deitarão no vosso regaço."},
-    {ref:"Salmos 121:8", txt:"O Senhor guardará a tua entrada e a tua saída, desde agora e para sempre."},
-    {ref:"Provérbios 16:9", txt:"O coração do homem propõe o seu caminho, mas o Senhor lhe dirige os passos."},
-    {ref:"2 Timóteo 1:7", txt:"Porque Deus não nos deu o espírito de temor, mas de fortaleza, e de amor, e de moderação."},
-    {ref:"Salmos 4:8", txt:"Em paz também me deitarei e dormirei, porque só tu, Senhor, me fazes habitar em segurança."},
-    {ref:"Eclesiastes 3:1", txt:"Tudo tem o seu tempo determinado, e há tempo para todo o propósito debaixo do céu."},
-    {ref:"Salmos 32:8", txt:"Instruir-te-ei, e ensinar-te-ei o caminho que deves seguir; guiar-te-ei com os meus olhos."},
-    {ref:"Provérbios 15:1", txt:"A resposta branda desvia o furor, mas a palavra dura suscita a ira."},
-    {ref:"Romanos 12:12", txt:"Alegrai-vos na esperança, sede pacientes na tribulação, perseverai na oração."},
-    {ref:"Salmos 90:17", txt:"E seja sobre nós a formosura do Senhor nosso Deus, e confirma sobre nós a obra das nossas mãos; sim, confirma a obra das nossas mãos."},
-    {ref:"Provérbios 21:5", txt:"Os pensamentos do diligente tendem só para a abundância, mas os de todo apressado, tendem à pobreza."},
-    {ref:"Salmos 121:3-4", txt:"Não deixará vacilar o teu pé; aquele que te guarda não tosquenejará. Eis que não tosquenejará nem dormirá o guarda de Israel."},
-    {ref:"Filipenses 4:6-7", txt:"Não estejais inquietos por coisa alguma; antes as vossas petições sejam em tudo conhecidas diante de Deus. E a paz de Deus, que excede todo o entendimento, guardará os vossos corações e os vossos sentimentos."},
-    {ref:"Salmos 37:4", txt:"Deleita-te também no Senhor, e ele te concederá o que deseja o teu coração."},
-    {ref:"Provérbios 12:24", txt:"A mão dos diligentes dominará, mas os enganadores serão tributários."},
-    {ref:"Isaías 43:2", txt:"Quando passares pelas águas, eu serei contigo, e quando pelos rios, eles não te submergirão."},
-    {ref:"Salmos 121:5-6", txt:"O Senhor é quem te guarda; o Senhor é a tua sombra à tua direita. O sol não te molestará de dia, nem a lua de noite."},
-    {ref:"Provérbios 24:16", txt:"Porque sete vezes cai o justo, e se levanta, mas os ímpios tropeçam no mal."},
-    {ref:"Mateus 5:16", txt:"Assim resplandeça a vossa luz diante dos homens, para que vejam as vossas boas obras e glorifiquem a vosso Pai, que está nos céus."},
-    {ref:"Salmos 145:18", txt:"Perto está o Senhor de todos os que o invocam, de todos os que o invocam em verdade."},
-    {ref:"Provérbios 19:21", txt:"Muitos propósitos há no coração do homem, mas o conselho do Senhor permanecerá."},
-    {ref:"Hebreus 13:5", txt:"Não vos entregueis à avareza, contentando-vos com o que tendes; porque ele disse: Não te deixarei, nem te desampararei."},
-    {ref:"Salmos 25:4-5", txt:"Faze-me saber os teus caminhos, Senhor; ensina-me as tuas veredas. Guia-me na tua verdade, e ensina-me, pois tu és o Deus da minha salvação."},
-    {ref:"Provérbios 3:24", txt:"Quando te deitares, não temerás; sim, tu te deitarás, e o teu sono será suave."},
-    {ref:"Números 6:24-26", txt:"O Senhor te abençoe, e te guarde; o Senhor faça resplandecer o seu rosto sobre ti, e tenha misericórdia de ti; o Senhor sobre ti levante o seu rosto, e te dê a paz."}
-  ];
-  function diaDoAno(d){
-    var inicio = new Date(d.getFullYear(), 0, 0);
-    var diff = d - inicio;
-    return Math.floor(diff / 86400000);
-  }
-  function montar(){
-    var tools = document.querySelector("header .tools");
-    if(!tools || !tools.parentNode) return;
-    var host = document.getElementById("versiculoDia");
-    if(!host){
-      host = document.createElement("div");
-      host.id = "versiculoDia";
-      host.style.cssText = "margin:10px auto 0;padding-top:10px;border-top:1px solid rgba(255,255,255,.1);max-width:760px;text-align:center";
-      tools.parentNode.insertBefore(host, tools.nextSibling);
-    }
-    var idx = diaDoAno(new Date()) % VERSOS.length;
-    var v = VERSOS[idx];
-    host.innerHTML =
-      '<div style="font-family:Georgia,\'Times New Roman\',serif;font-style:italic;font-size:14.5px;color:rgba(255,255,255,.85);line-height:1.55">📖 “' + v.txt + '”</div>' +
-      '<div style="margin-top:5px;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--amber);font-weight:600">— ' + v.ref + '</div>';
-  }
-  function iniciar(){
-    montar();
-    setInterval(montar, 30 * 60000);
-  }
-  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar); else iniciar();
-})();
-</script>
+<!-- PATCH_VERSICULO_DIA (versiculo biblico no cabecalho, pedido pessoal do dono da Transload)
+     removido nesta versao EPOKA - preferencia especifica daquele dono. Se a EPOKA quiser algo
+     assim (frase do dia, versiculo, lema da empresa), e so pedir que eu recolo aqui. -->
 <script>
 /* PATCH_STATUS_FINALIZADO_FIXO v2 - pedido do dono, 21/08/2026 (v1); reforçado 21/08/2026 (v2)
    depois do dono reportar que VÁRIAS placas finalizadas/encerradas continuavam voltando pro
@@ -4382,7 +4271,7 @@ html[data-tema="preto"] .badge-next{ background:rgba(59,140,130,.28)!important; 
   var sbLerCompleto = window.sbLer;
 
   window.sbLer = async function(c){
-    var u = c.url.replace(/\/+$/,"") + "/rest/v1/painel_leve?id=eq." + encodeURIComponent(c.quadro||"transload") + "&select=*";
+    var u = c.url.replace(/\/+$/,"") + "/rest/v1/painel_leve?id=eq." + encodeURIComponent(c.quadro||"epoka") + "&select=*";
     var r = await fetch(u, { headers: sbHeaders(c) });
     if(!r.ok) throw new Error("HTTP " + r.status + " ao ler (leve)");
     var j = await r.json();
@@ -4448,7 +4337,7 @@ html[data-tema="preto"] .badge-next{ background:rgba(59,140,130,.28)!important; 
      lugar certo -- a checagem extra antes de cada envio volta a funcionar de verdade, em vez
      de sempre falhar silenciosamente (!r.ok -> return false) e nunca bloquear nada. */
   async function estaDerrubadaAgora(id, cfg){
-    var u = cfg.url.replace(/\/+$/,"") + "/rest/v1/painel?id=eq." + encodeURIComponent(cfg.quadro||"transload") + "&select=dados";
+    var u = cfg.url.replace(/\/+$/,"") + "/rest/v1/painel?id=eq." + encodeURIComponent(cfg.quadro||"epoka") + "&select=dados";
     var r = await fetch(u, { headers: sbHeaders(cfg) });
     if(!r.ok) return false;
     var j = await r.json();
@@ -5001,25 +4890,13 @@ html[data-tema="preto"] .badge-next{ background:rgba(59,140,130,.28)!important; 
 })();
 </script>
 
-<script>
-// PATCH_FORCA_PROJETO_ATUAL v1 -- corrige reset automatico da config de sync
-// para o projeto Supabase antigo (que estourava cota de egress). Roda depois
-// de qualquer outro script no carregamento da pagina e garante que o projeto
-// atual valido fique configurado, sem depender de nada anterior no arquivo.
-(function(){
-  try {
-      var URL_ATUAL = "https://tqkqnmecanwvxegjiicz.supabase.co";
-          var KEY_ATUAL = "sb_publishable_-viqQNss7IHeLYdWc0WG2A_GF6HRbNM";var raw = localStorage.getItem("painel-viagens-sync");
-    var cfg = {};
-    try { cfg = raw ? JSON.parse(raw) : {}; } catch (e) { cfg = {}; }
-    cfg.url = URL_ATUAL;
-    cfg.key = KEY_ATUAL;
-    cfg.ativo = true;
-    localStorage.setItem("painel-viagens-sync", JSON.stringify(cfg));
-    window.__PATCH_FORCA_PROJETO_ATUAL = "v1";
-  } catch (e) {}
-})();
-</script>
+<!-- PATCH_FORCA_PROJETO_ATUAL (Transload) removido nesta versao EPOKA: aquele patch forcava
+     sempre o projeto Supabase antigo da Transload no localStorage, sobrescrevendo o que o
+     usuario configurasse em Configuracoes -> Quadro compartilhado. A EPOKA usa o proprio
+     projeto Supabase, configurado uma vez pela tela (botao "Testar e ativar") - o navegador
+     guarda depois, sem precisar deste patch. Se um dia a EPOKA tambem sofrer reset automatico
+     de config (mesmo sintoma que a Transload teve), reative este mecanismo aqui com a URL/key
+     da EPOKA. -->
 
 <script>
 /* PATCH_STATUS_AGUARDANDO_NF v1 (28/08/2026) -- card recem-criado com bsoftAberto=true e
@@ -5445,7 +5322,98 @@ function renderEntregaLM(container, d, idx, ov) {
   }
 })();
 </script>
+<script>
+/* PATCH_RASTREIO_GPS_MOTORISTA v1 (EPOKA) - a EPOKA nao usa Ca2Track/Transrisco. A posicao de
+   cada caminhao agora vem do proprio celular do motorista: nesta mesma tela do link individual
+   (?mot=<placa>&tok=<chave>, ver PATCH_LINK_MOTORISTA logo acima), o navegador pede permissao
+   de localizacao e, uma vez concedida, manda a posicao pro card do motorista periodicamente
+   via navigator.geolocation.watchPosition. Os dados caem no MESMO d.tracking que o painel ja
+   sabe desenhar (card, "sem sinal ha X horas", mapa da frota) - so a ORIGEM da posicao mudou,
+   a estrutura de dados e a mesma que o Ca2Track preenchia antes. Preenche d.tracking.posicao
+   com "lat,lng" (6 casas) em vez de um endereco de texto - o PATCH_MAPA foi ajustado (mais
+   abaixo neste arquivo) pra reconhecer esse formato e plotar direto, sem precisar geocodificar.
+   Sync com o servidor reaproveita o mesmo caminho de sempre (touch + save + enviarAoServidor).
+   Para desfazer: apague este bloco - o card so passa a nao receber mais posicao nova (nada
+   quebra, os campos antigos de d.tracking continuam existindo se ja tinham sido preenchidos). */
+(function(){
+  if (window.__PATCH_RASTREIO_GPS_MOTORISTA) return;
+  window.__PATCH_RASTREIO_GPS_MOTORISTA = "v1";
+
+  var qpGPS = new URLSearchParams(location.search);
+  var motIdGPS = qpGPS.get("mot");
+  var motTokGPS = qpGPS.get("tok");
+  if (!motIdGPS) return; // so roda na tela do motorista
+
+  var INTERVALO_MIN_MS = 20000; // nao manda pro servidor mais de 1x a cada 20s, mesmo se o GPS
+                                 // atualizar mais rapido - poupa egress do Supabase gratuito
+  var ultimoEnvioGPS = 0;
+  var avisoMostradoGPS = false;
+
+  function acharDriverGPS(){
+    if (typeof driver !== "function" || typeof normalizePlaca !== "function") return null;
+    var placa = normalizePlaca(motIdGPS);
+    var d = driver(motIdGPS);
+    if (!d && placa) d = (S.drivers || []).find(function(x){ return normalizePlaca(x.placa) === placa; });
+    if (!d) return null;
+    var chaveCard = d.linkMotorista && d.linkMotorista.chave;
+    var entryPlaca = (S.linksPorPlaca || {})[normalizePlaca(d.placa)];
+    var chavePlaca = entryPlaca && entryPlaca.chave;
+    var bate = !!(motTokGPS && ((chaveCard && chaveCard === motTokGPS) || (chavePlaca && chavePlaca === motTokGPS)));
+    return bate ? d : null;
+  }
+
+  function mostrarAvisoGPS(msg){
+    if (avisoMostradoGPS) return;
+    var ov = document.getElementById("motoristaOverlayLM");
+    if (!ov) { setTimeout(function(){ mostrarAvisoGPS(msg); }, 800); return; }
+    var box = document.createElement("div");
+    box.style.cssText = "max-width:480px;margin:0 auto 14px;text-align:center;background:#FFF4E5;border-radius:10px;padding:10px 14px;color:#8A5A00;font-size:13px;";
+    box.textContent = msg;
+    ov.insertBefore(box, ov.firstChild);
+    avisoMostradoGPS = true;
+  }
+
+  function enviarPosicaoGPS(pos){
+    var agora = Date.now();
+    if (agora - ultimoEnvioGPS < INTERVALO_MIN_MS) return;
+    var d = acharDriverGPS();
+    if (!d) return;
+    ultimoEnvioGPS = agora;
+    var lat = pos.coords.latitude, lng = pos.coords.longitude;
+    var velKmh = (typeof pos.coords.speed === "number" && pos.coords.speed >= 0)
+      ? Math.round(pos.coords.speed * 3.6)
+      : (d.tracking ? (d.tracking.velocidade || 0) : 0);
+    d.tracking = d.tracking || {};
+    d.tracking.lat = lat;
+    d.tracking.lng = lng;
+    d.tracking.posicao = lat.toFixed(6) + "," + lng.toFixed(6);
+    d.tracking.referencia = "";
+    d.tracking.velocidade = velKmh;
+    d.tracking.trackedAt = agora;
+    d.tracking.origem = "gps_motorista";
+    if (typeof touch === "function") touch(d);
+    if (typeof save === "function") save();
+    if (typeof enviarAoServidor === "function") enviarAoServidor().catch(function(){});
+  }
+
+  function iniciarGPS(){
+    if (!("geolocation" in navigator)) {
+      mostrarAvisoGPS("⚠️ Este navegador não suporta localização automática. Peça pra central atualizar manualmente.");
+      return;
+    }
+    navigator.geolocation.watchPosition(enviarPosicaoGPS, function(err){
+      if (err && err.code === err.PERMISSION_DENIED) {
+        mostrarAvisoGPS("📍 Ative a localização deste celular pra central acompanhar sua viagem em tempo real.");
+      }
+    }, { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 });
+  }
+
+  // espera a tela do motorista (PATCH_LINK_MOTORISTA) montar antes de comecar
+  setTimeout(iniciarGPS, 1200);
+})();
+</script>
 </html>
+
 <script>
 /* PATCH_EGRESS_LEVE v1 (27/08/2026) — antes de baixar o quadro inteiro do Supabase,
    pergunta só o carimbo de hora (poucos bytes) e só baixa tudo se mudou de verdade.
@@ -5455,7 +5423,7 @@ function renderEntregaLM(container, d, idx, ov) {
   var _carimboVistoEgress = 0;
 
   async function _lerCarimboEgress(c){
-    var u = c.url.replace(/\/+$/,"") + "/rest/v1/painel" + "?id=eq." + encodeURIComponent(c.quadro||"transload") + "&select=atualizado_em";
+    var u = c.url.replace(/\/+$/,"") + "/rest/v1/painel" + "?id=eq." + encodeURIComponent(c.quadro||"epoka") + "&select=atualizado_em";
     var r = await fetch(u, { headers: sbHeaders(c) });
     if(!r.ok) throw new Error("HTTP " + r.status + " ao checar carimbo");
     var j = await r.json();
@@ -5653,7 +5621,7 @@ function renderEntregaLM(container, d, idx, ov) {
   var leveIndisponivel = false;
 
   async function lerFallbackCompleto(c){
-    var uFB = c.url.replace(/\/+$/, "") + "/rest/v1/painel?id=eq." + encodeURIComponent(c.quadro || "transload") + "&select=*";
+    var uFB = c.url.replace(/\/+$/, "") + "/rest/v1/painel?id=eq." + encodeURIComponent(c.quadro || "epoka") + "&select=*";
     var headersFB = (typeof sbHeaders === "function") ? sbHeaders(c) : {apikey: c.key, Authorization: "Bearer " + c.key};
     var rFB = await fetch(uFB, { headers: headersFB });
     if (!rFB.ok) throw new Error("HTTP " + rFB.status + " ao ler (fallback completo)");
@@ -6872,6 +6840,28 @@ Para desfazer: apagar este bloco - os botoes somem do painel principal, nada mai
     var comPino = 0, semPosicaoTxt = 0, aguardandoGeo = 0, naoAchou = 0;
 
     visiveis.forEach(function(d){
+      /* EPOKA (PATCH_RASTREIO_GPS_MOTORISTA): quando a posicao ja vem em lat/lng direto do GPS
+         do motorista, usa direto - nao precisa geocodificar nada (isso so serve pro caso antigo
+         do Ca2Track, que so mandava endereco em texto). */
+      if (d.tracking && typeof d.tracking.lat === "number" && typeof d.tracking.lng === "number") {
+        vistos[d.id] = true;
+        var stGPS = STAGES.find(function(s){ return s.key === d.status; }) || STAGES[0];
+        var posGPS = [d.tracking.lat, d.tracking.lng];
+        if(marcadores[d.id]){
+          marcadores[d.id].setLatLng(posGPS);
+          marcadores[d.id].setIcon(pinIcon(stGPS.color));
+        } else {
+          marcadores[d.id] = L.marker(posGPS, { icon: pinIcon(stGPS.color) }).addTo(mapa);
+        }
+        var atualizadoGPS = d.tracking.trackedAt ? timeAgo(d.tracking.trackedAt) : "sem horário";
+        var popGPS = '<div class="mpin-pop"><b>' + esc(d.motorista||"") + '</b><br>' +
+          esc(d.placa||"") + (d.mdfe ? " · MDF-e " + esc(d.mdfe) : "") + '<br>' +
+          '<span class="st" style="background:' + stGPS.color + '">' + stGPS.icon + " " + esc(stGPS.label) + '</span><br>' +
+          'rastreio ' + atualizadoGPS + '</div>';
+        marcadores[d.id].bindPopup(popGPS);
+        comPino++;
+        return;
+      }
       var posTxt = (d.tracking && (d.tracking.posicao || d.tracking.referencia)) || "";
       if(!posTxt){ semPosicaoTxt++; return; }
       var chave = chaveTexto(posTxt);
@@ -7131,16 +7121,6 @@ Para desfazer: apagar este bloco - os botoes somem do painel principal, nada mai
 })();
 </script>
 
-<style id="PATCH_FUNDO_CRUZ">
-/* PATCH_FUNDO_CRUZ v1 (Claude, 10/09/2026) - imagem de fundo discreta (cruz ao por do sol),
-   pedido do dono, atras dos cards. Card/coluna sao opacos por cima, entao so aparece nos vaos
-   entre eles - efeito sutil, nao atrapalha leitura. Imagem em assets/fundo-cruz.jpg (upload
-   manual do dono, nao ha ferramenta de upload de arquivo binario nesta sessao). Enquanto o
-   arquivo nao existir no repo, isso fica sem efeito visivel (nao quebra nada). Para desfazer,
-   apague este bloco <style>. */
-body{
-  background:
-    linear-gradient(rgba(247,246,252,.93), rgba(247,246,252,.93)),
-    url('assets/fundo-cruz.jpg') center/cover no-repeat fixed;
-}
-</style>
+<!-- PATCH_FUNDO_CRUZ (imagem de fundo religiosa, pedido pessoal do dono da Transload) removido
+     nesta versao EPOKA - era uma preferencia especifica daquele dono, nao faz sentido herdar
+     por padrao pra uma empresa nova. Se a EPOKA quiser algum fundo/marca propria, e so pedir. -->
