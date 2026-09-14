@@ -7386,154 +7386,92 @@ Para desfazer: apagar este bloco - os botoes somem do painel principal, nada mai
 </script>
 
 <script>
-/* PATCH_LM_BOTAO_TRACCAR v1 (14/09/2026) - pedido do dono: alem do link de confirmar entrega
-   (PATCH_LINK_MOTORISTA), da pro escritorio copiar uma URL pra colar no app "Traccar Client"
-   (gratuito, Play Store) - ele manda a localizacao em segundo plano DE VERDADE (com tela
-   apagada, app fechado), o que um link de navegador nao consegue (limite do proprio sistema
-   Android/iOS, nao tem jeito de contornar so com codigo). O Traccar Client manda a posicao pro
-   endpoint (Edge Function "traccar-ping" no Supabase) que atualiza o mesmo d.tracking que o
-   card/mapa ja leem - nada muda na exibicao. Reaproveita a MESMA chave persistente por placa que
-   o link de confirmacao ja usa (S.linksPorPlaca) - nao precisa gerenciar nenhum segredo novo,
-   nem mexer no PATCH_LINK_MOTORISTA existente. So aparece na tela do escritorio (nunca quando
-   ?mot= esta na URL, ou seja, nunca na tela do motorista). Para desfazer: apague este bloco. */
-(function(){
-  if (window.__PATCH_LM_BOTAO_TRACCAR) return;
-  window.__PATCH_LM_BOTAO_TRACCAR = "v1";
-
-  var qpBT = new URLSearchParams(location.search);
-  if (qpBT.get("mot")) return; // nunca na tela do motorista
-
-  var URL_FUNCTION_TRACCAR = "https://tqkqnmecanwvxegjiicz.supabase.co/functions/v1/traccar-ping";
-
-  function tokenAleatorioBT(){
-    if (window.crypto && crypto.randomUUID) return crypto.randomUUID().replace(/-/g, "");
-    return Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-  }
-
-  function chaveDaPlacaBT(placaNorm){
-    if (!S.linksPorPlaca) S.linksPorPlaca = {};
-    var entry = S.linksPorPlaca[placaNorm];
-    if (!entry || !entry.chave) {
-      entry = { chave: tokenAleatorioBT(), criadoEm: Date.now() };
-      S.linksPorPlaca[placaNorm] = entry;
-      if (typeof save === "function") save();
-    }
-    return entry.chave;
-  }
-
-  function copiarTextoBT(t){
-    var ok = false;
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(t); ok = true; }
-    } catch (e) {}
-    if (!ok) {
-      try {
-        var ta = document.createElement("textarea");
-        ta.value = t; ta.style.position = "fixed"; ta.style.opacity = "0";
-        document.body.appendChild(ta); ta.focus(); ta.select();
-        document.execCommand("copy");
-        document.body.removeChild(ta);
-      } catch (e) {}
-    }
-  }
-
-  function injetarBotaoTraccarBT(){
-    document.querySelectorAll(".cardbtns").forEach(function (cb) {
-      if (cb.querySelector("[data-traccarbt]")) return;
-      var card = cb.closest(".card");
-      var delBtn = card ? card.querySelector('[data-act="del"]') : null;
-      var id = delBtn ? delBtn.getAttribute("data-id") : null;
-      if (!id) return;
-      var b = document.createElement("button");
-      b.className = "mini";
-      b.setAttribute("data-traccarbt", id);
-      b.title = 'Copiar URL pra colar no app "Traccar Client" (rastreio real em segundo plano)';
-      b.textContent = "🛰 URL Traccar";
-      b.addEventListener("click", function (ev) {
-        ev.preventDefault();
-        var d = (typeof driver === "function") ? driver(id) : null;
-        if (!d || !d.placa) return;
-        var placaBT = (typeof normalizePlaca === "function") ? normalizePlaca(d.placa) : d.placa;
-        var chave = chaveDaPlacaBT(placaBT);
-        var urlFinal = URL_FUNCTION_TRACCAR + "?chave=" + encodeURIComponent(chave);
-        copiarTextoBT(urlFinal);
-        var old = b.textContent;
-        b.textContent = "✅ Copiado!";
-        setTimeout(function () { b.textContent = old; }, 2500);
-      });
-      cb.appendChild(b);
-    });
-  }
-
-  setInterval(injetarBotaoTraccarBT, 1500);
-})();
-</script>
-
-<script>
 /* PATCH_LM_LINK_GOOGLE_MAPS v1 (14/09/2026) - pedido do dono: alternativa que nao pede nenhum
    app novo pro motorista - ele mesmo ativa "Compartilhamento de localizacao" > "Criar link" no
    Google Maps (que ja tem em qualquer celular) e manda esse link pro escritorio (WhatsApp etc).
    Este patch so guarda esse link colado no card do caminhao e da um atalho pra abrir numa aba
    nova - NAO ha API do Google pra puxar essa localizacao pra dentro do nosso mapa/card, entao
    fica uma aba separada por caminhao, sem historico gravado no nosso banco (limite do Google,
-   nao da nossa implementacao). Clique esquerdo abre o link salvo (ou pede pra colar um, se ainda
-   nao tiver); clique direito edita/substitui o link (mesmo padrao do botao de WhatsApp que ja
-   existe no card). So aparece na tela do escritorio. Para desfazer: apague este bloco. */
+   nao da nossa implementacao). Em vez de um botao com caixa de dialogo, injeta um CAMPO
+   visivel no card (input + botao "abrir") pra colar o link direto - mais claro que um
+   window.prompt(). O valor so e sobrescrito pelo estado salvo quando o campo NAO esta em foco
+   (pra nao apagar o que a pessoa esta digitando/colando no meio de uma atualizacao do quadro).
+   So aparece na tela do escritorio. Para desfazer: apague este bloco. */
 (function(){
   if (window.__PATCH_LM_LINK_GOOGLE_MAPS) return;
-  window.__PATCH_LM_LINK_GOOGLE_MAPS = "v1";
+  window.__PATCH_LM_LINK_GOOGLE_MAPS = "v2";
 
   var qpGM = new URLSearchParams(location.search);
   if (qpGM.get("mot")) return; // nunca na tela do motorista
 
-  function pedirLinkGM(atual){
-    return window.prompt(
-      'Cole o link que o motorista mandou (Google Maps > toque na foto de perfil > "Compartilhamento de localização" > "Compartilhar localização" > "Criar link"):',
-      atual || ""
-    );
-  }
+  var estilosGM = document.createElement("style");
+  estilosGM.textContent =
+    ".gmapsRowLM{display:flex;gap:6px;margin-top:6px;align-items:center}" +
+    ".gmapsRowLM input{flex:1;min-width:0;font-size:12px;padding:5px 7px;border:1px solid var(--line);border-radius:6px;background:transparent;color:inherit}" +
+    ".gmapsRowLM button{flex:none}";
+  document.head.appendChild(estilosGM);
 
-  function injetarBotaoGM(){
+  function injetarCampoGM(){
     document.querySelectorAll(".cardbtns").forEach(function (cb) {
-      if (cb.querySelector("[data-gmapsbt]")) return;
       var card = cb.closest(".card");
-      var delBtn = card ? card.querySelector('[data-act="del"]') : null;
+      if (!card || card.querySelector("[data-gmapsrow]")) return;
+      var delBtn = card.querySelector('[data-act="del"]');
       var id = delBtn ? delBtn.getAttribute("data-id") : null;
       if (!id) return;
-      var b = document.createElement("button");
-      b.className = "mini";
-      b.setAttribute("data-gmapsbt", id);
-      b.textContent = "🗺️ Google Maps";
-      b.title = "Abrir localização em tempo real que o motorista compartilhou (botão direito cola/edita o link)";
-      b.addEventListener("click", function (ev) {
-        ev.preventDefault();
-        var d = (typeof driver === "function") ? driver(id) : null;
-        if (!d) return;
-        if (d.linkGoogleMapsLM) {
-          window.open(d.linkGoogleMapsLM, "_blank", "noopener");
-          return;
-        }
-        var novo = pedirLinkGM("");
-        if (novo && novo.trim()) {
-          d.linkGoogleMapsLM = novo.trim();
-          if (typeof touch === "function") touch(d);
-          if (typeof save === "function") save();
-        }
-      });
-      b.addEventListener("contextmenu", function (ev) {
-        ev.preventDefault();
-        var d = (typeof driver === "function") ? driver(id) : null;
-        if (!d) return;
-        var novo = pedirLinkGM(d.linkGoogleMapsLM || "");
-        if (novo === null) return; // cancelou
-        d.linkGoogleMapsLM = novo.trim();
-        if (typeof touch === "function") touch(d);
+
+      var d = (typeof driver === "function") ? driver(id) : null;
+
+      var row = document.createElement("div");
+      row.className = "gmapsRowLM";
+      row.setAttribute("data-gmapsrow", id);
+
+      var input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = "🗺️ Colar link de localização (Google Maps > Compartilhar > Criar link)";
+      input.value = (d && d.linkGoogleMapsLM) || "";
+
+      var salvarGM = function () {
+        var dAtual = (typeof driver === "function") ? driver(id) : null;
+        if (!dAtual) return;
+        var v = input.value.trim();
+        if (v === (dAtual.linkGoogleMapsLM || "")) return; // nada mudou
+        dAtual.linkGoogleMapsLM = v;
+        if (typeof touch === "function") touch(dAtual);
         if (typeof save === "function") save();
+      };
+      input.addEventListener("change", salvarGM);
+      input.addEventListener("keydown", function (ev) {
+        if (ev.key === "Enter") { input.blur(); }
       });
-      cb.appendChild(b);
+
+      var abrirBtn = document.createElement("button");
+      abrirBtn.className = "mini";
+      abrirBtn.textContent = "🗺️ Abrir";
+      abrirBtn.title = "Abrir a localização em tempo real que o motorista compartilhou";
+      abrirBtn.addEventListener("click", function (ev) {
+        ev.preventDefault();
+        var v = input.value.trim();
+        if (!v) { input.focus(); return; }
+        window.open(v, "_blank", "noopener");
+      });
+
+      row.appendChild(input);
+      row.appendChild(abrirBtn);
+      card.appendChild(row);
     });
   }
 
-  setInterval(injetarBotaoGM, 1500);
+  function atualizarCamposGM(){
+    document.querySelectorAll("[data-gmapsrow]").forEach(function (row) {
+      var id = row.getAttribute("data-gmapsrow");
+      var input = row.querySelector("input");
+      if (!input || document.activeElement === input) return; // nao pisa no que a pessoa esta digitando
+      var d = (typeof driver === "function") ? driver(id) : null;
+      var valorSalvo = (d && d.linkGoogleMapsLM) || "";
+      if (input.value !== valorSalvo) input.value = valorSalvo;
+    });
+  }
+
+  setInterval(function () { injetarCampoGM(); atualizarCamposGM(); }, 1500);
 })();
 </script>
