@@ -4961,13 +4961,16 @@ html[data-tema="preto"] .badge-next{ background:rgba(59,140,130,.28)!important; 
     if (window.crypto && crypto.randomUUID) return crypto.randomUUID().replace(/-/g, '');
     return Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
   }
-  function linkDoMotoristaLM(d) {
+  function garantirChavePlacaLM(d) {
     /* PATCH_LINK_MOTORISTA_PERSISTENTE_POR_PLACA (10/09/2026) - pedido do dono: "pode ser o
        mesmo link por viagem" - o link agora e amarrado a PLACA, nao ao card/viagem, pra nao
        precisar gerar/reenviar um link novo toda vez que fecha uma viagem e abre outra pro
        mesmo caminhao (antes, cada card novo tinha um id novo e o link antigo parava de bater).
        A chave persistente fica em S.linksPorPlaca[placa] (sincronizada entre
-       dispositivos pelo PATCH_SYNC_LINKSPORPLACA, mais abaixo no arquivo). */
+       dispositivos pelo PATCH_SYNC_LINKSPORPLACA, mais abaixo no arquivo).
+       Usada tanto pelo link do navegador (linkDoMotoristaLM) quanto pelo link de configuracao
+       do app EPOKA Rastreio (linkAppRastreioLM, ver PATCH_APP_RASTREIO_LINK abaixo) - as duas
+       formas de mandar a localizacao pro painel compartilham a MESMA chave por placa. */
     if (!S.linksPorPlaca) S.linksPorPlaca = {};
     var placaLM = normalizePlaca(d.placa);
     var entry = S.linksPorPlaca[placaLM];
@@ -4984,7 +4987,21 @@ html[data-tema="preto"] .badge-next{ background:rgba(59,140,130,.28)!important; 
     }
     d.linkMotorista = { chave: entry.chave, criadoEm: entry.criadoEm };
     touch(d); save();
-    return location.origin + location.pathname + '?mot=' + encodeURIComponent(placaLM) + '&tok=' + encodeURIComponent(entry.chave);
+    return { placa: placaLM, chave: entry.chave };
+  }
+  function linkDoMotoristaLM(d) {
+    var rLM = garantirChavePlacaLM(d);
+    return location.origin + location.pathname + '?mot=' + encodeURIComponent(rLM.placa) + '&tok=' + encodeURIComponent(rLM.chave);
+  }
+  function linkAppRastreioLM(d) {
+    /* PATCH_APP_RASTREIO_LINK (15/09/2026) - link de configuracao do app nativo EPOKA Rastreio
+       (repo caionino20-afk/epoka-rastreio). O motorista precisa ja ter instalado o .apk (a
+       central manda o arquivo direto por WhatsApp) - ao abrir este link no celular ja com o
+       app instalado, o Android reconhece o esquema "epokarastreio://" e abre o app direto na
+       tela de "comecar a compartilhar", com a placa e a chave ja preenchidas (nao precisa
+       digitar nada). Mesma chave por placa do link do navegador (garantirChavePlacaLM). */
+    var rAR = garantirChavePlacaLM(d);
+    return 'epokarastreio://configurar?chave=' + encodeURIComponent(rAR.chave) + '&placa=' + encodeURIComponent(rAR.placa);
   }
   function copiarTextoLM(t) {
     var ok = false;
@@ -5024,6 +5041,23 @@ html[data-tema="preto"] .badge-next{ background:rgba(59,140,130,.28)!important; 
         setTimeout(function () { b.textContent = old; }, 2000);
       });
       cb.appendChild(b);
+
+      var b2 = document.createElement('button');
+      b2.className = 'mini';
+      b2.setAttribute('data-linkapp', id);
+      b2.title = 'Copiar link pra configurar o app EPOKA Rastreio no celular do motorista (depois de instalado - manda o .apk primeiro)';
+      b2.textContent = '📱 App rastreio';
+      b2.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        var d = driver(id);
+        if (!d) return;
+        var url = linkAppRastreioLM(d);
+        copiarTextoLM(url);
+        var old2 = b2.textContent;
+        b2.textContent = '✅ Copiado!';
+        setTimeout(function () { b2.textContent = old2; }, 2000);
+      });
+      cb.appendChild(b2);
     });
   }
 
